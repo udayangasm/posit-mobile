@@ -9,12 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
-  FlatList,
-  TouchableWithoutFeedback,
 } from 'react-native';
 
-//import RNPrint from 'react-native-print';
-
+import * as Print from 'expo-print';
 
 // Custom hook for global state
 import { useGlobalValue } from './GlobalContext';
@@ -30,15 +27,9 @@ const CreditBillScreen = () => {
   const [discountPercentage, setDiscountPercentage] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [customerQuery, setCustomerQuery] = useState('');
-  const [customers, setCustomers] = useState([
-    { name: 'John Doe', address: '123 Elm St' },
-    { name: 'Jane Smith', address: '456 Oak St' },
-    { name: 'John Doe', address: '789 Pine St' },
-    { name: 'Alice Johnson', address: '321 Maple St' },
-    { name: 'Bob Brown', address: '654 Birch St' },
-  ]);
-const [filteredCustomers, setFilteredCustomers] = useState([]);
-const [showSearch, setShowSearch] = useState(true);
+  const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [showSearch, setShowSearch] = useState(true);
 
   // Fetch items from API
   const fetchItems = async () => {
@@ -66,9 +57,41 @@ const [showSearch, setShowSearch] = useState(true);
     }
   };
 
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch('https://positnow.com:8040/customer/getAllCustomers', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // Assuming token is needed for auth
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to fetch customers: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      const formattedCustomers = data.map(customer => ({
+        name: customer.name,
+        address: customer.address,
+        email: customer.email,
+        telephone: customer.telephone,
+        customerCode: customer.customerCode,
+      }));
+  
+      setCustomers(formattedCustomers);
+      setFilteredCustomers(formattedCustomers);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      Alert.alert('Error', 'Failed to load customers. Please try again.');
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchItems();
+      fetchCustomers();
     } else {
       setLoading(false);
     }
@@ -168,9 +191,9 @@ const [showSearch, setShowSearch] = useState(true);
       <p><strong>Discount:</strong> ${discountValue ? `$${discountValue}` : `${discountPercentage}%`}</p>
       <p><strong>Net Total:</strong> $${calculateNetTotal().toFixed(2)}</p>
     `;
-
+  
     try {
-   //   await RNPrint.print({ html: htmlContent });
+      await Print.printAsync({ html: htmlContent });
     } catch (error) {
       console.error('Error printing invoice:', error);
       Alert.alert('Error', 'Failed to print the invoice.');
@@ -330,7 +353,7 @@ const [showSearch, setShowSearch] = useState(true);
 </View>
 
 {/* Print Button at the Bottom */}
-<TouchableOpacity style={styles.purchaseButton} onPress={() => console.log('Print Invoice')}>
+<TouchableOpacity style={styles.purchaseButton} onPress={handlePrint}>
   <Text style={styles.purchaseButtonText}>Purchase & print</Text>
 </TouchableOpacity>
 
